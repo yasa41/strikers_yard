@@ -12,7 +12,7 @@ from bookings.models import User, OTP
 from bookings.models import Service, TimeSlot, Booking
 from bookings.serializers import TimeSlotSerializer, BookingSerializer
 from bookings.models import Booking, TimeSlot, Service
-from bookings.serializers import BookingSerializer
+from bookings.serializers import BookingSerializer, ServiceSerializer
 
 
 
@@ -160,70 +160,147 @@ class TimeSlotListView(APIView):
 
 
 
+# class BookingCreateView(generics.CreateAPIView):
+#     serializer_class = BookingSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def create(self, request, *args, **kwargs):
+#         user = request.user
+#         service_id = request.data.get("service")
+#         time_slot_id = request.data.get("time_slot")
+#         date = request.data.get("date")
+
+#         # Validation
+#         if not all([service_id, time_slot_id, date]):
+#             return Response(
+#                 {"error": "Missing required fields (service, time_slot, date)."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         try:
+#             service = Service.objects.get(id=service_id)
+#             time_slot = TimeSlot.objects.get(id=time_slot_id)
+#         except (Service.DoesNotExist, TimeSlot.DoesNotExist):
+#             return Response({"error": "Invalid service or time slot."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Check if already booked
+#         if Booking.objects.filter(time_slot=time_slot, date=date, service=service).exists():
+#             return Response(
+#                 {"error": "This time slot is already booked for this service."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # Create booking (pending payment)
+#         booking = Booking.objects.create(
+#             user=user,
+#             service=service,
+#             time_slot=time_slot,
+#             date=date,
+#             status="pending"
+#         )
+
+#         # Create Razorpay Order
+#         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+#         order_data = {
+#             "amount": int(service.price_per_hour),  # Razorpay uses paise
+#             "currency": "INR",
+#             "receipt": str(booking.booking_id),
+#             "payment_capture": 1
+#         }
+
+#         order = client.order.create(order_data)
+#         booking.payment_order_id = order.get("id")
+#         booking.save()
+
+#         response_data = self.get_serializer(booking).data
+#         response_data["razorpay_order_id"] = order.get("id")
+#         response_data["razorpay_key_id"] = settings.RAZORPAY_KEY_ID
+#         response_data["amount"] = order_data["amount"]
+
+#         return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+
+
+
 class BookingCreateView(generics.CreateAPIView):
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
+    
 
     def create(self, request, *args, **kwargs):
+        print("TEST")
+        access_token = request.COOKIES.get("access_token")
+
+        if not access_token:
+            return Response(
+                {"error": "Access token missing in cookies."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        print(request.COOKIES)
         user = request.user
         service_id = request.data.get("service")
         time_slot_id = request.data.get("time_slot")
         date = request.data.get("date")
+        duration_hours = int(request.data.get("duration_hours", 1))
 
-        # Validation
         if not all([service_id, time_slot_id, date]):
-            return Response(
-                {"error": "Missing required fields (service, time_slot, date)."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Missing required fields (service, time_slot, date)."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         try:
             service = Service.objects.get(id=service_id)
-            time_slot = TimeSlot.objects.get(id=time_slot_id)
+            start_slot = TimeSlot.objects.get(id=time_slot_id)
         except (Service.DoesNotExist, TimeSlot.DoesNotExist):
-            return Response({"error": "Invalid service or time slot."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid service or time slot."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if already booked
-        if Booking.objects.filter(time_slot=time_slot, date=date, service=service).exists():
-            return Response(
-                {"error": "This time slot is already booked for this service."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Get all consecutive slots for the duration
+        all_slots = list(TimeSlot.objects.all().order_by("start_time"))
+        start_index = all_slots.index(start_slot)
+        required_slots = all_slots[start_index:start_index + duration_hours]
 
-        # Create booking (pending payment)
+        if len(required_slots) < duration_hours:
+            return Response({"error": "Not enough consecutive slots available."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if any of those slots are already booked
+        if Booking.objects.filter(time_slot__in=required_slots, date=date, service=service).exists():
+            return Response({"error": "One or more selected hours are already booked."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Create booking
         booking = Booking.objects.create(
             user=user,
             service=service,
-            time_slot=time_slot,
+            time_slot=start_slot,
             date=date,
+            duration_hours=duration_hours,
             status="pending"
         )
 
-        # Create Razorpay Order
+        # Razorpay order creation
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        total_amount = int(service.price_per_hour * duration_hours) * 100  # rupees → paise
 
         order_data = {
-            "amount": int(service.price_per_hour),  # Razorpay uses paise
+            "amount": total_amount,
             "currency": "INR",
             "receipt": str(booking.booking_id),
-            "payment_capture": 1
+            "payment_capture": 1,
         }
-
         order = client.order.create(order_data)
         booking.payment_order_id = order.get("id")
         booking.save()
 
         response_data = self.get_serializer(booking).data
-        response_data["razorpay_order_id"] = order.get("id")
-        response_data["razorpay_key_id"] = settings.RAZORPAY_KEY_ID
-        response_data["amount"] = order_data["amount"]
-
+        response_data.update({
+            "razorpay_order_id": order.get("id"),
+            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+            "amount": total_amount,
+        })
         return Response(response_data, status=status.HTTP_201_CREATED)
-
-
-
-
-
 
 
 
@@ -323,3 +400,12 @@ class VerifyPaymentView(APIView):
                 {"success": False, "message": "Payment verification failed"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+            
+            
+            
+@api_view(['GET'])
+def get_services(request):
+    services = Service.objects.all()
+    serialized_data = ServiceSerializer(services, many=True).data
+    return Response(serialized_data, status=200)
+

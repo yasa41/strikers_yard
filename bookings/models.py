@@ -92,8 +92,6 @@ class TimeSlot(models.Model):
     def __str__(self):
         return f"{self.start_time.strftime('%I:%M %p')} - {self.end_time.strftime('%I:%M %p')}"
 
-
-# Booking model: links user, service, date, and timeslot
 class Booking(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -105,7 +103,9 @@ class Booking(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings')
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='bookings')
     date = models.DateField()
-    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)
+    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)  # starting slot
+    duration_hours = models.PositiveIntegerField(default=1)  # new field
+
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -114,16 +114,11 @@ class Booking(models.Model):
     payment_signature = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:
-        unique_together = ('date', 'time_slot', 'service')  # Prevent double booking for same slot/service/date
+        unique_together = ('date', 'time_slot',)
         ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user} - {self.service.name} ({self.date} {self.time_slot})"
-
-
-
-
-
 
 
 

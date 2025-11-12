@@ -4,7 +4,8 @@ from .views import (request_otp,
                     TimeSlotListView,
                     BookingCreateView,
                     CreateRazorpayOrderView,
-                    VerifyPaymentView)
+                    VerifyPaymentView,
+                    get_services)
 
 urlpatterns = [
     path('auth/request-otp/', request_otp, name='request_otp'),
@@ -13,5 +14,6 @@ urlpatterns = [
     path('bookings/', BookingCreateView.as_view(), name='booking-create'),
     path('create-order/', CreateRazorpayOrderView.as_view(), name='create_razorpay_order'),
     path('verify-payment/', VerifyPaymentView.as_view(), name='verify_payment'),
+    path('services/', get_services, name='get_services'),
 
 ]

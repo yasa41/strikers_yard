@@ -8,8 +8,8 @@ function App() {
 
   return (
     <>
-      {/* <PhoneOTPComponent/>
-       */}
+      <PhoneOTPComponent/>
+      
 
        <SportsBooking/>
     </>

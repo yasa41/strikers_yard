@@ -47,8 +47,14 @@ class BookingSerializer(serializers.ModelSerializer):
             'date',
             'time_slot',
             'status',
+            'duration_hours',
             'payment_order_id',
             'payment_id',
             'payment_signature',
         ]
         read_only_fields = ['booking_id', 'status', 'payment_order_id', 'payment_id', 'payment_signature']
+
+
+
+
+
