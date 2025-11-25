@@ -43,8 +43,6 @@ export default function SportsBooking() {
   const { sports, loading, error } = useSports();
   const [login,setLogin] = useState(isLoggedIn());
   const turfs = [
-    { id: '5-a-side-turf-a', name: '5 a side Turf A' },
-    { id: '5-a-side-turf-b', name: '5 a side Turf B' },
     { id: '7-a-side-turf-c', name: '7 a side Turf C' },
   ];
 
@@ -144,6 +142,29 @@ export default function SportsBooking() {
     const ampm = hourNum >= 12 ? 'PM' : 'AM';
     hourNum = hourNum % 12 || 12;
     return `${hourNum}:${minutes} ${ampm}`;
+  };
+  
+  // getMaxDuration to be used to get dynamic upper limits for booking duration based on already booked slots.
+  const getMaxDuration = (slotId = selectedSlot) => {
+    if (!slotId) return 1; // ✔ check slotId, not selectedSlot
+
+    const currentIndex = availableSlots.findIndex(s => s.id === slotId);
+    if (currentIndex === -1) return 1;
+
+    let maxHours = 1;
+
+    // Check upcoming consecutive slots
+    for (let i = currentIndex + 1; i < availableSlots.length; i++) {
+      const prev = availableSlots[i - 1];
+      const next = availableSlots[i];
+
+      if (next.is_taken) break;
+      if (prev.end_time !== next.start_time) break;
+
+      maxHours++;
+    }
+
+    return maxHours;
   };
 
   const handleBooking = async (partial = false) => {
@@ -294,7 +315,12 @@ export default function SportsBooking() {
                       <button
                         key={slot.id}
                         disabled={slot.is_taken}
-                        onClick={() => setSelectedSlot(slot.id)}
+                        onClick={() => {
+                          const max = getMaxDuration(slot.id);
+                          setSelectedSlot(slot.id)
+                          //reset to 1 hour whenever new slot is selected
+                          if(duration  > max) setDuration(1);
+                        }}
                         className={`relative p-4 rounded-xl transition-all duration-300 text-sm font-semibold ${selectedSlot === slot.id
                             ? 'bg-linear-to-br from-blue-500 to-purple-500 text-white shadow-lg scale-105'
                             : slot.is_taken
@@ -314,7 +340,7 @@ export default function SportsBooking() {
                 )}
               </div>
             </div>
-            <DurationSelector duration={duration} setDuration={setDuration} />
+            <DurationSelector duration={duration} setDuration={setDuration} getMaxDuration= {getMaxDuration} selectedSlot = {selectedSlot}/>
             <TurfSelector turfs={turfs} selectedTurf={selectedTurf} setSelectedTurf={setSelectedTurf} />
             <BookingSummary selectedSportObj={sports.find(s => s.name.toLowerCase() === selectedSport)} convenienceFee={convenienceFee} total={total} selectedSlot={availableSlots.find(slot => slot.id === selectedSlot)} duration={duration} />
 

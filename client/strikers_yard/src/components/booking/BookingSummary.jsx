@@ -10,6 +10,7 @@ export default function BookingSummary({
   const bookingFee = selectedSportObj
     ? parseInt(selectedSportObj.price_per_hour, 10) * duration
     : 0;
+
   const total = bookingFee + convenienceFee;
 
   // Format slot time for display (if slot chosen), else show message
@@ -28,7 +29,7 @@ export default function BookingSummary({
       <div className="space-y-4 mb-6">
         <div className="flex justify-between items-center">
           <span className="text-gray-700 font-medium">Booking Fee</span>
-          <span className="font-bold text-2xl text-gray-800">₹{bookingFee}</span>
+          <span className="font-bold text-2xl text-gray-800">₹{bookingFee - 20 }</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-700 font-medium">Convenience Fee</span>
@@ -37,7 +38,7 @@ export default function BookingSummary({
         <div className="border-t border-white/30 pt-4">
           <div className="flex justify-between items-center">
             <span className="font-bold text-lg text-gray-800">Total Amount</span>
-            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">₹{total}</span>
+            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">₹{total - 20}</span>
           </div>
         </div>
       </div>
