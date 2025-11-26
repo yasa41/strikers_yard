@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import LoginModal from "./components/LoginModal";
 import { isLoggedIn } from "./services/is_logged_in";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -29,6 +30,10 @@ export default function App() {
 
   return (
     <>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+      />
       <Navbar openLogin={() => openLogin()} />
 
       <Routes>

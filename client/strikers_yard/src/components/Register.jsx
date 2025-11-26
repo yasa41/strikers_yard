@@ -1,208 +1,259 @@
-import { useState } from 'react';
-import { registerUser, verifyOTP } from '../services/api';
+import { useState } from "react";
+import { updateUserDetails, registerUser, verifyOTP } from "../services/api";
 
-export default function PhoneOTPComponent({onSuccess}) {
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [showOTP, setShowOTP] = useState(false);
-    const [otp, setOTP] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [message, setMessage] = useState('');
+export default function PhoneOTPComponent({ onSuccess }) {
+  // NEW USER EXTRA DETAILS
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
 
-    const handleSendOTP = async () => {
-        if (!phoneNumber || phoneNumber.length < 10) {
-            setMessage('Please enter a valid phone number');
-            return;
-        }
+  // NORMAL OTP STATES
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [showOTP, setShowOTP] = useState(false);
+  const [otp, setOTP] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [message, setMessage] = useState("");
 
-        setIsLoading(true);
-        setMessage('');
+  // ------------------------------------------
+  // SEND OTP
+  // ------------------------------------------
+  const handleSendOTP = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      setMessage("Please enter a valid phone number");
+      return;
+    }
 
-        try {
-            const response = await registerUser(phoneNumber);
-            setShowOTP(true);
-            setMessage('OTP sent successfully!');
-            console.log('OTP Response:', response.data);
-        } catch (error) {
-            setMessage(error.response?.data?.message || 'Failed to send OTP. Please try again.');
-            console.error('Send OTP Error:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    setIsLoading(true);
+    setMessage("");
 
-    const handleVerifyOTP = async () => {
-        if (!otp || otp.length < 4) {
-            setMessage('Please enter a valid OTP');
-            return;
-        }
+    try {
+      const response = await registerUser(phoneNumber);
+      setShowOTP(true);
+      setMessage("OTP sent successfully!");
+      console.log("OTP Response:", response.data);
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message || "Failed to send OTP. Please try again."
+      );
+      console.error("Send OTP Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        setIsVerifying(true);
-        setMessage('');
+  // ------------------------------------------
+  // VERIFY OTP
+  // ------------------------------------------
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length < 4) {
+      setMessage("Please enter a valid OTP");
+      return;
+    }
 
-        try {
-            const response = await verifyOTP(phoneNumber, otp);
-            setMessage('OTP verified successfully!');
-            console.log('Verify Response:', response.data);
+    setIsVerifying(true);
+    setMessage("");
 
-            // Store user data if returned
-            if (response.data?.user) {
-                localStorage.setItem('user', JSON.stringify(response.data.user));
-            }
+    try {
+      const response = await verifyOTP(phoneNumber, otp);
+      console.log("Verify Response:", response.data);
+      // Save user data
+      if (response.data?.user)
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+    if (response.data?.access)
+        localStorage.setItem("access_token", response.data.access);
+    if (response.data?.refresh)
+        localStorage.setItem("refresh_token", response.data.refresh);
+    
+    // Check if first login
+    if (response.data?.user?.is_first_login) {
+        setIsNewUser(true);
+        console.log('hi')
+        return; // STOP — go to name/email screen
+    }
+    console.log('hello')
 
-            if (response.data?.access) {
-                localStorage.setItem('access_token', response.data.access);
-            }
-            if (response.data?.refresh) {
-                localStorage.setItem('refresh_token', response.data.refresh);
-            }
-            if(onSuccess){
-                onSuccess();
-                window.dispatchEvent(new Event("authChanged"));
+      // Trigger global auth change & close modal
+      window.dispatchEvent(new Event("authChanged"));
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message || "Invalid OTP. Please try again."
+      );
+      console.error("Verify OTP Error:", error);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
-            }
-            // Redirect or perform next action after successful verification
-            // window.location.href = '/dashboard';
-        } catch (error) {
-            setMessage(error.response?.data?.message || 'Invalid OTP. Please try again.');
-            console.error('Verify OTP Error:', error);
-        } finally {
-            setIsVerifying(false);
-        }
-    };
+  // ------------------------------------------
+  // SUBMIT NAME + EMAIL FOR NEW USER
+  // ------------------------------------------
+  const handleNewUserSubmit = async () => {
+    if (!name.trim() || !email.trim()) {
+      setMessage("Please enter name and email");
+      return;
+    }
 
-    const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/\D/g, '');
-        setPhoneNumber(value);
-        setMessage('');
-    };
+    setIsVerifying(true);
 
-    const handleOTPChange = (e) => {
-        const value = e.target.value.replace(/\D/g, '');
-        setOTP(value);
-        setMessage('');
-    };
+    try {
+      const response = await updateUserDetails({
+        name,
+        email,
+      });
+      //TODO: set name to local storage
+      console.log("Profile updated:", response.data);
 
-    return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-overlay">
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-modal">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">
-                    Phone Verification
-                </h2>
-                <p className="text-gray-600 text-center mb-8">
-                    Enter your phone number to receive an OTP
-                </p>
+      // Finalize login
+      window.dispatchEvent(new Event("authChanged"));
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      setMessage("Could not save details, try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
-                <div className="space-y-6">
-                    {/* Phone Number Input */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Phone Number
-                        </label>
-                        <div className="flex gap-3">
-                            <input
-                                type="tel"
-                                value={phoneNumber}
-                                onChange={handlePhoneChange}
-                                placeholder="Enter phone number"
-                                maxLength="10"
-                                disabled={showOTP}
-                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            />
-                            <button
-                                onClick={handleSendOTP}
-                                disabled={isLoading || showOTP}
-                                className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 transition disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                                {isLoading ? 'Sending...' : showOTP ? 'Sent' : 'Send OTP'}
-                            </button>
-                        </div>
-                    </div>
+  // ------------------------------------------
+  // RENDER
+  // ------------------------------------------
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-overlay">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-modal">
+        <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">
+          Phone Verification
+        </h2>
+        <p className="text-gray-600 text-center mb-8">
+          Enter your phone number to receive an OTP
+        </p>
 
-                    {/* OTP Input - Only shown after sending OTP */}
-                    {showOTP && (
-                        <div className="animate-fadeIn">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Enter OTP
-                            </label>
-                            <input
-                                type="text"
-                                value={otp}
-                                onChange={handleOTPChange}
-                                placeholder="Enter 4-6 digit OTP"
-                                maxLength="6"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-center text-2xl tracking-widest font-semibold"
-                            />
+        {/* ---------------------- 
+            STEP 1: PHONE INPUT 
+        ---------------------- */}
+        {!isNewUser && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) =>
+                    setPhoneNumber(e.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder="Enter phone number"
+                  maxLength="10"
+                  disabled={showOTP}
+                  className="flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                />
 
-                            <button
-                                onClick={handleVerifyOTP}
-                                disabled={isVerifying}
-                                className="w-full mt-4 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            >
-                                {isVerifying ? 'Verifying...' : 'Verify OTP'}
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    setShowOTP(false);
-                                    setOTP('');
-                                    setPhoneNumber('');
-                                    setMessage('');
-                                }}
-                                className="w-full mt-2 px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:ring-4 focus:ring-gray-300 transition"
-                            >
-                                Change Number
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Message Display */}
-
-                    {message && (
-                        <div
-                            className={`p-4 rounded-lg text-center font-medium ${message.includes('success')
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}
-                        >
-                            {message}
-                        </div>
-                    )}
-                </div>
+                <button
+                  onClick={handleSendOTP}
+                  disabled={isLoading || showOTP}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg disabled:bg-gray-400"
+                >
+                  {isLoading
+                    ? "Sending..."
+                    : showOTP
+                    ? "Sent"
+                    : "Send OTP"}
+                </button>
+              </div>
             </div>
 
-            <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-        @keyframes overlayFade {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+            {/* OTP INPUT */}
+            {showOTP && (
+              <div className="animate-fadeIn">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter OTP
+                </label>
 
-        @keyframes modalPop {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOTP(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Enter OTP"
+                  maxLength="6"
+                  className="w-full px-4 py-3 border rounded-lg text-center text-2xl"
+                />
 
-        .animate-overlay {
-            animation: overlayFade 0.25s ease-out forwards;
-        }
+                <button
+                  onClick={handleVerifyOTP}
+                  disabled={isVerifying}
+                  className="w-full mt-4 px-6 py-3 bg-green-600 text-white rounded-lg disabled:bg-gray-400"
+                >
+                  {isVerifying ? "Verifying..." : "Verify OTP"}
+                </button>
 
-        .animate-modal {
-            animation: modalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
-        </div>
-    );
+                <button
+                  onClick={() => {
+                    setShowOTP(false);
+                    setOTP("");
+                    setPhoneNumber("");
+                    setMessage("");
+                  }}
+                  className="w-full mt-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg"
+                >
+                  Change Number
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---------------------- 
+            STEP 2: NAME + EMAIL INPUT 
+        ---------------------- */}
+        {isNewUser && (
+          <div className="animate-fadeIn space-y-6">
+            <label className="block text-sm font-medium text-gray-700">
+              Full Name
+            </label>
+            <input
+              type="text"
+              className="w-full px-4 py-3 border rounded-lg"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter your name"
+            />
+
+            <label className="block text-sm font-medium text-gray-700">
+              Email Address
+            </label>
+            <input
+              type="email"
+              className="w-full px-4 py-3 border rounded-lg"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+            />
+
+            <button
+              onClick={handleNewUserSubmit}
+              disabled={isVerifying}
+              className="w-full mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg disabled:bg-gray-400"
+            >
+              {isVerifying ? "Saving..." : "Continue"}
+            </button>
+          </div>
+        )}
+
+        {/* MESSAGE */}
+        {message && (
+          <div
+            className={`p-4 mt-4 rounded-lg text-center ${
+              message.includes("success")
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

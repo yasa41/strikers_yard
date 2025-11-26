@@ -30,8 +30,8 @@ const loadRazorpayScript = () => {
 };
 
 export default function SportsBooking() {
-  const today = new Date(2025, 10, 11);
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 10, 1));
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedSport, setSelectedSport] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(today);

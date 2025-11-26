@@ -37,7 +37,9 @@ authAPI.interceptors.request.use((config) => {
 
 
 
-
+export const updateUserDetails = (data) =>{
+  return authAPI.post("/set-name-email/", data);
+}
 
 
 export const registerUser = (phone_number) => {
@@ -67,4 +69,9 @@ export const createBooking = (bookingData) => {
 
 export const verifyPayment = (payload) => {
   return authAPI.post('/verify-payment/', payload);
+};
+
+
+export const fetchMyBookings = () => {
+  return authAPI.get("/my-bookings/");
 };

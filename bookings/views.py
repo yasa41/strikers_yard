@@ -81,6 +81,8 @@ def verify_otp(request):
         "user": {
             "id": user.id,
             "phone_number": user.phone_number,
+            "name": user.name,
+            "email": user.email,
             "is_first_login": is_first_login
         }
     }, status=200)
@@ -122,7 +124,11 @@ class SetNameAndEmailView(APIView):
         user.email = email
         user.save()
 
-        return Response({"message": "Profile updated successfully"}, status=200)
+        return Response({"message": "Profile updated successfully", "user": {
+            "phone_number": user.phone_number,
+            "name": user.name,
+            "email": user.email,
+        }}, status=200)
 
 
 class TimeSlotListView(APIView):
