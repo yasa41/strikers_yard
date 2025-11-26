@@ -74,13 +74,14 @@ def verify_otp(request):
     user, created = User.objects.get_or_create(phone_number=phone)
     refresh = RefreshToken.for_user(user)
     
-    
+    is_first_login = created
     response = Response({
         "refresh": str(refresh),
         "access": str(refresh.access_token),
         "user": {
             "id": user.id,
             "phone_number": user.phone_number,
+            "is_first_login": is_first_login
         }
     }, status=200)
 
@@ -106,8 +107,22 @@ def verify_otp(request):
     # }, status=200)
 
 
+class SetNameAndEmailView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        user = request.user
+        name = request.data.get('name')
+        email = request.data.get('email')
 
+        if not name or not email:
+            return Response({"error": "Name and email are required"}, status=400)
+
+        user.name = name
+        user.email = email
+        user.save()
+
+        return Response({"message": "Profile updated successfully"}, status=200)
 
 
 class TimeSlotListView(APIView):
@@ -430,3 +445,26 @@ def get_services(request):
     serialized_data = ServiceSerializer(services, many=True).data
     return Response(serialized_data, status=200)
 
+
+
+
+
+
+
+class MyBookingsView(generics.ListAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(user=self.request.user).order_by('-created_at')
+    
+    
+
+
+class BookingDetailView(generics.RetrieveAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'booking_id'
+
+    def get_queryset(self):
+        return Booking.objects.filter(user=self.request.user)
