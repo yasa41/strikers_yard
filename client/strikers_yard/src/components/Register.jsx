@@ -102,7 +102,9 @@ export default function PhoneOTPComponent({ onSuccess }) {
         name,
         email,
       });
-      //TODO: set name to local storage
+      if (response.data?.user) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
       console.log("Profile updated:", response.data);
 
       // Finalize login
