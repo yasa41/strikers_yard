@@ -430,3 +430,17 @@ def get_services(request):
     serialized_data = ServiceSerializer(services, many=True).data
     return Response(serialized_data, status=200)
 
+
+
+
+
+
+
+class MyBookingsView(generics.ListAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(user=self.request.user).order_by('-created_at')
+    
+    
