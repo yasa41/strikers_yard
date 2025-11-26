@@ -36,7 +36,7 @@ export default function SportsBooking() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(today);
   const [duration, setDuration] = useState(1);
-  const [selectedTurf, setSelectedTurf] = useState('5-a-side-turf-a');
+  const [selectedTurf, setSelectedTurf] = useState();
   const [availableSlots, setAvailableSlots] = useState([]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [overlay ,setOverlay] =useState(false);
@@ -134,7 +134,28 @@ export default function SportsBooking() {
 
     fetchSlots(dateStr, service.id)
       .then(res => {
-        setAvailableSlots(res.data.slots);
+        //filter res.data.slots which are of today and time is already past
+        //TODO: test this 
+        let slots = res.data.slots;
+
+        // If the selected date is today → remove past slots
+        const now = new Date();
+        const isToday =
+          selectedDate.getFullYear() === now.getFullYear() &&
+          selectedDate.getMonth() === now.getMonth() &&
+          selectedDate.getDate() === now.getDate();
+
+        if (isToday) {
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          slots = slots.filter(slot => {
+            const [h, m] = slot.start_time.split(":").map(Number);
+            const slotMinutes = h * 60 + m * 1;
+
+            return slotMinutes >= currentMinutes; // keep only future slots
+          });
+        }
+        setAvailableSlots(slots);
         setSelectedSlot(null);
       })
       .catch(err => {
